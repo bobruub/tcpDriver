@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<stubbyConf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+<!-- Configuration Section -->
+
+<!-- http configuration 
+<HTTPServer Host="10.3.18.57" Port="8888" ThreadCount="1000" 
+MonitorPort="9002" MonitorRefresh="10"/>
+-->
+
+<!-- http://10.3.18.58:10001/QWERTY -->
+
+	
+	<MQSeries
+	Threads="1" 	
+	QManager="SERVER.QMGR" 
+	WaitTime="0"  
+	ClientHost="192.168.1.191"
+	ClientPort="1414"
+	ClientChannel="CHNAME"
+	ClientUserName=" "
+	ClientPassword=" " 
+	QueueName="SERVER.SECOND.QUEUE"
+	OutQueueName="SERVER.LOCAL.QUEUE"
+	/>
+
+<!-- httpS configuration  
+
+<HTTPServer Host="192.168.56.1" Port="8888" ThreadCount="1000" 
+MonitorPort="9002" MonitorRefresh="10"
+			SSLKeyStore="C:\dbox\Dropbox\java\20150821_httpstub\keystore\keystore.jks" 
+			SSLKeyPswd="password" 
+			SSLKeyStorePswd="password" 
+			SSLCertStore="certStore" 
+			SSLClientAuth="false"
+			/>
+-->
+<!-- version control -->
+<!-- v0.5 - Tim Lane - 07/02/2014 - initial version -->
+	<Core Author="Tim Lane" Name="HTTP TEST STUB" Description="HTTP TEST STUB" > 
+	
+	<!-- Date="07/02/2014"> -->
+	<Header LogLevel="INFO" LogFileName="C:\dbox\Dropbox\java\stubby\log4j.properties"/>
+
+<!-- variable section -->
+
+<!-- generate a timestamp -->
+	<!-- Round Robin whole line -->
+	<Variable Name="DataReadNextLine" Type="FileRead" AccessType="NEXT" Filename="C:\dbox\Dropbox\java\stubby\data\datafile.txt" />
+	
+	<Variable Name="FileLookup" Type="FileRead" Filename="C:\dbox\Dropbox\java\stubby\data\datafile2.txt" />
+	
+	<Variable Name="StringVariable1" Type="String" Value="3111" />
+		
+	<Variable Name="LookupFile" Type="FileLookup" KeyType="Variable" KeyValue="StringVariable1" Filename="C:\dbox\Dropbox\java\stubby\data\datafile2.txt"/>
+
+	<!-- current time -->
+	<Variable Name="TIMESTAMP" Type="Timestamp" Format="HH:mm:ss"/>
+	<!-- one hour in the future -->
+	<Variable Name="TIMESTAMPplusOne" Type="Timestamp" Offset="3600" Format="HH:mm:ss"/>
+<!-- end timestamp -->	
+
+<!-- generate a guid id -->
+	<Variable Name="GUIDToken" Type="Guid" />
+<!-- end generate guid -->
+
+<!-- generate a SessionId -->
+	<Variable Name="SessionId" Type="SessionId" SessionLength="40"/>
+<!-- end generate SessionId -->
+
+<!-- create a static string value -->
+	<Variable Name="StringVariable" Type="String" Value="testing testing one two three" />
+<!-- end string value -->
+
+
+<!-- create a static random number value between one and 9999 -->
+	<Variable Name="randNumber" Type="RandomLong" RandMin="1111" RandMax="9999" Format="%s" />
+<!-- end random value -->
+	
+<!-- following variables read data from a file either ROUND ROBIN (NEXT) or RANDOM -->
+	<!-- extracts from input based on position -->
+	<Variable Name="postionalVar" Type="Positional" StartPosition="30" Length="10" DefaultValue=" not found" />	
+
+<!-- extracts from input based on tags -->
+	<Variable Name="extractGUID" Type="Delimited" RightOf="=" LeftOf="&amp;" DefaultValue="GUID not found" /> 
+	<Variable Name="extractTEXT" Type="Delimited" RightOf="=" LeftOf="&amp;" DefaultValue="TEXT not found" /> 
+
+<!-- test all message types -->
+
+<!-- TIMESTAMP -->
+<ReceiverEvent Name="timestamp" KeyType="STRING" KeyValue="timestamp">
+		<EventMessage BaselineMessage="timestamp" WaitDistribution="UNIFORM" MinWait="0.1" MaxWait="0.5"/>
+	</ReceiverEvent>
+	<BaselineMessage Name="timestamp">LookupFile is %LookupFile%</BaselineMessage>
+
+<ReceiverEvent Name="frednerk" KeyType="STRING" KeyValue="frednerk">
+		<EventMessage BaselineMessage="frednerk" WaitDistribution="UNIFORM" MinWait="0.1" MaxWait="0.5"/>
+	</ReceiverEvent>
+	<BaselineMessage Name="frednerk">LookupFile is %LookupFile%</BaselineMessage>
+
+<ReceiverEvent Name="joeblow" KeyType="STRING" KeyValue="joeblow">
+		<EventMessage BaselineMessage="joeblow" WaitDistribution="UNIFORM" MinWait="0.1" MaxWait="0.5"/>
+	</ReceiverEvent>
+	<BaselineMessage Name="joeblow">LookupFile is %LookupFile%</BaselineMessage>
+
+
+
+
+</Core>
+
+</stubbyConf>

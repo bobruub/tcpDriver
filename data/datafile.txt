@@ -1,0 +1,3 @@
+line one - GUID -- %GUIDToken%
+line two - TIMESTAMP -- %TIMESTAMP%
+line three - RANDOM NUMBER -- %randNumber%

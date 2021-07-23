@@ -1,0 +1,484 @@
+package com.tcp.core;
+
+/**
+ class: HttpStubWorker
+ Purpose: new thread for HTTP stub.
+ Notes:
+ Author: Tim Lane
+ Date: 24/03/2014
+ 
+ **/
+
+import com.sharkysoft.printf.Printf;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.List;
+import java.util.Random;
+import java.util.Date;
+import org.apache.log4j.Logger;
+import java.util.UUID;
+import java.util.ArrayList;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+
+public class StubWorker {
+  
+  public static final String DELIMITED_TYPE = "Delimited";
+  public static final String MULTIDELIMITED_TYPE = "MultiDelimited";
+  public static final String EXTRACTVALUE_TYPE = "ExtractValue";
+  public static final String FILE_READ_TYPE = "FileRead";
+  public static final String FILE_LOOKUP_TYPE = "FileLookup";
+  public static final String NUMBER_TYPE = "Number";
+  public static final String POSITIONAL_TYPE = "Positional";
+  public static final String RANDOM_DOUBLE_TYPE = "RandomDouble";
+  public static final String RANDOM_LONG_TYPE = "RandomLong";
+  public static final String STRING_TYPE = "String";
+  public static final String THREAD_TYPE = "Thread";
+  public static final String TIMESTAMP_TYPE = "Timestamp";
+  public static final String LOOKUP_TYPE = "Lookup";
+  public static final String HEX_TYPE = "HEX";
+  public static final String GUID_TYPE = "Guid";
+  public static final String THREAD_COUNT_TYPE = "ThreadCount";
+  public static final String CONTENT_LENGTH_TYPE = "ContentLength";
+  public static final String RECEIVEREVENT_COUNT_TYPE = "ReceiverCount";
+  public static final String DATABASE_LOOKUP_TYPE = "DatabaseLookup";
+  public static final String SESSION_TYPE = "SessionId";
+  
+  List<String> receiverEventCntr;
+  String searchLine = null;
+  String postsearchLine = null;
+  String searchType = null;
+  String searchValue = null;
+  String receiverName = null;
+  String baselineNameMatch = null;
+  String responseMsg = null;
+  boolean msgFound = false;
+  float  waitFrom;
+  float  waitTo;
+  String  waitDistribution;
+  String messageName; 
+  String variableValue = null;
+  double waitTime;
+  SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss:SSS");
+  String formattedDate;
+  String formattedStartDate;
+  Date date;
+  Date startDate;
+  Date endDate;
+  int postLength = 0;
+  String firstLine = null;
+  String threadName = null;
+  
+  ReceiverEvent receiverEvent = new ReceiverEvent() ;
+  boolean dbEventFound=false;
+  List<String> dbLookup = new ArrayList<String>();
+  boolean dbLookupRequired;
+  
+  StubLog stubLog = new StubLog();
+  String logMsg = "";
+  
+  public String getReceiverName(String searchLine, CoreProperties coreProperties){
+    String receiverName = "Not Found";
+    for (int i = 0; i < coreProperties.getReceiverEvents().size(); i++) {
+      receiverEvent = (ReceiverEvent) coreProperties.getReceiverEvents().get(i);
+      searchValue =  receiverEvent.getKeyValue();
+      searchType = receiverEvent.getKeyType();
+      if (searchType.toUpperCase().equals("STRING")) {
+        if (searchLine.contains(searchValue)){
+          receiverName = receiverEvent.getName();
+          break; // found a message so stop looking
+        }  
+      } else {  // must be REGEX
+        Pattern myPattern = Pattern.compile(searchValue);
+        Matcher matcher = myPattern.matcher(searchLine);
+        if (matcher.find()) {
+          receiverName = receiverEvent.getName();
+          break; // found a message so stop looking
+        }
+      }
+    }
+    return receiverName;
+  }
+  
+  /*
+   * Once we have the receiver name then get the correspnding message config
+   * to be returned. HTTP only allows one EVENT message per receiver so no need to loop through array.
+   * get the wait distribution (type, min and max) from message config
+   */
+  public EventMessage getEventMessage(){
+    EventMessage message = (EventMessage) receiverEvent.getMessages().get(0);
+    return message;
+  }
+  /*
+   * once we have set the message config find the corresponding BASELINE message (response data)
+   * in the baseline message array
+   */
+  public String getBaselineMessage(String messageName,CoreProperties coreProperties){
+    for (int i = 0; i < coreProperties.getBaselineMessages().size(); i++) {
+      BaseLineMessage baseLineMessage =  (BaseLineMessage) coreProperties.getBaselineMessages().get(i);
+      if (baseLineMessage.getName().equals(messageName)){
+        responseMsg = baseLineMessage.getCdata();
+        break; // found a match so stop looking
+      }
+    }
+    return responseMsg;
+  }
+  /*
+   * now we have the response message need to replace all Variables, tagged with %varName%
+   * in the response message.
+   * So loop through all variables and see if they exist in the response message
+   */
+  public String processResponseMessage(String searchLine,String responseMsg,CoreProperties coreProperties, Logger logger,String threadName) {
+    
+    logMsg= "DBUG : T" + threadName + " : StubWorker : processing message : " + responseMsg;
+        stubLog.addMessage(logMsg, logger,"DEBUG");
+
+    for (int i = 0; i < coreProperties.getVariables().size(); i++) {
+      
+      Variable variable =  (Variable) coreProperties.getVariables().get(i);
+      CharSequence seq = "%" + variable.getName() + "%";
+      /*
+       * if they exist in the response message then process them
+       */
+      if (responseMsg.contains(seq)) { 
+        variableValue = processMessage(searchLine,variable,responseMsg,dbLookup,coreProperties,logger);
+        responseMsg = responseMsg.replaceAll(seq.toString(), variableValue);
+        // 2.1
+      }
+      
+    }
+    logMsg= "DBUG : T" + threadName + " : StubWorker : processing complete : " + responseMsg;
+        stubLog.addMessage(logMsg, logger,"DEBUG");
+
+    return responseMsg;        
+  }
+  /*
+   * we have all the required details to write a response, so it is here that we 
+   * insert the delay in responding as per EVENT message config.
+   */
+  public double getRandonNumber(String waitDistribution, Double waitFrom, Double waitTo){
+    RandomNumberGenerator generator = new RandomNumberGenerator(waitDistribution, waitFrom, waitTo);
+    return waitTime = generator.randomDouble();    
+  }
+  private String processMessage(String searchLine, 
+                                Variable variable, 
+                                String responseMsg, 
+                                CoreProperties coreProperties,
+                                Logger logger,
+  String threadName) {
+    
+    String variableValue = null; 
+    if (variable.getType().equals(DELIMITED_TYPE)){
+      variableValue = processDelimitedType(searchLine, variable,logger);
+    } else if (variable.getType().equals(CONTENT_LENGTH_TYPE)){
+      variableValue = processContentLengthType(responseMsg);
+    } else if (variable.getType().equals(TIMESTAMP_TYPE)){
+      variableValue = processTimestampType(variable);
+    } else if (variable.getType().equals(RANDOM_LONG_TYPE)){
+      variableValue = processRandomLongType(variable);
+    } else if (variable.getType().equals(POSITIONAL_TYPE)){
+      variableValue = processPositionalType(searchLine, variable,logger);
+    } else if (variable.getType().equals(GUID_TYPE)){
+      variableValue = processGuidType();
+    } else if (variable.getType().equals(SESSION_TYPE)){
+      variableValue = processSessionType(variable, logger);
+    } else if (variable.getType().equals(THREAD_COUNT_TYPE)){
+      variableValue = processThreadCountType();
+    } else if (variable.getType().equals(NUMBER_TYPE)){
+      variableValue = processNumberType(variable);
+    } else if (variable.getType().equals(STRING_TYPE)){
+      variableValue = processStringType(variable);
+    } else if (variable.getType().equals(RECEIVEREVENT_COUNT_TYPE)){
+      variableValue = processReceiverCountType();
+    } else if (variable.getType().equals(FILE_READ_TYPE)){
+      variableValue = processFileReadType(variable);
+    }  else if (variable.getType().equals(FILE_LOOKUP_TYPE)){
+      variableValue = processFileLookupType(variable,coreProperties);
+    }
+    variable.setValue(variableValue);
+    return variableValue;
+  } // end
+  /*
+   * write the header and body
+   */
+  private String processMessage(String searchLine, 
+                                Variable variable, 
+                                String responseMsg, 
+                                List<String> dbLookup,
+                                CoreProperties coreProperties,
+                                Logger logger) {
+    
+    String variableValue = null; 
+    if (variable.getType().equals(DELIMITED_TYPE)){
+      variableValue = processDelimitedType(searchLine, variable,logger);
+    } else if (variable.getType().equals(CONTENT_LENGTH_TYPE)){
+      variableValue = processContentLengthType(responseMsg);
+    } else if (variable.getType().equals(TIMESTAMP_TYPE)){
+      variableValue = processTimestampType(variable);
+    } else if (variable.getType().equals(RANDOM_LONG_TYPE)){
+      variableValue = processRandomLongType(variable);
+    } else if (variable.getType().equals(POSITIONAL_TYPE)){
+      variableValue = processPositionalType(searchLine, variable,logger);
+    } else if (variable.getType().equals(GUID_TYPE)){
+      variableValue = processGuidType();
+    } else if (variable.getType().equals(SESSION_TYPE)){
+      variableValue = processSessionType(variable, logger);
+    } else if (variable.getType().equals(THREAD_COUNT_TYPE)){
+      variableValue = processThreadCountType();
+    } else if (variable.getType().equals(NUMBER_TYPE)){
+      variableValue = processNumberType(variable);
+    } else if (variable.getType().equals(STRING_TYPE)){
+      variableValue = processStringType(variable);
+    } else if (variable.getType().equals(RECEIVEREVENT_COUNT_TYPE)){
+      variableValue = processReceiverCountType();
+    } else if (variable.getType().equals(FILE_READ_TYPE)){
+      variableValue = processFileReadType(variable);
+    }  else if (variable.getType().equals(FILE_LOOKUP_TYPE)){
+      variableValue = processFileLookupType(variable,coreProperties);
+    }
+    variable.setValue(variableValue);
+    return variableValue;
+  } // end
+  
+  public String processFileReadType(Variable variable){
+    String variableValue = "not found.";
+    //String arrayValue="";
+    /*
+     * if the config calls for a random entry then call the random function
+     */
+    if (variable.getAccessType().toUpperCase().equals("RANDOM")){
+      variableValue = variable.getVariableFileArray().getRandomValue();
+    } else { // next in file
+      variableValue = variable.getVariableFileArray().getNextValue();
+    }
+    return variableValue;
+  }
+  
+  // v1.1
+  public String processFileLookupType(Variable variable,CoreProperties coreProperties){
+    String variableValue = "not found.";
+    String keyType = variable.getKeyType();
+    String keyValue = variable.getKeyValue();
+    String fileLookupVariable = variable.getFileLookupVariable();  
+    
+    /*
+     * if the keytype is VARIABLE, then pull the keyValue from a variable
+     */ 
+    if (keyType.toUpperCase().equals("VARIABLE")){
+      for (int i = 0; i < coreProperties.getVariables().size(); i++) {
+        Variable checkVariable =  (Variable) coreProperties.getVariables().get(i);
+        if (checkVariable.getName().equals(keyValue)){
+          variableValue = variable.getVariableFileArray().lookupValue(checkVariable.getValue());
+          break; // found the entry no need to continue
+        }
+      }
+    } else {
+      variableValue = variable.getVariableFileArray().lookupValue(keyValue);
+    }
+    return variableValue;
+  }
+  
+  public String processDelimitedType(String searchLine, Variable variable,Logger logger){
+    
+    String variableValue = null;
+    try {
+      String[] rightOf = searchLine.split(variable.getRightOf());
+      String[] leftOf = rightOf[1].split(variable.getLeftOf());
+      variableValue = leftOf[0];
+    } catch(Exception e){
+      if (variable.getDefaultValue().length() > 0){
+        logMsg= "httpStubWorker : delimited variable : " + variable.getName() + " not found with: " 
+          + variable.getRightOf() + " : " + variable.getLeftOf() 
+          + " default value : " + variable.getDefaultValue() + " used.";
+        stubLog.addMessage(logMsg, logger,"INFO");
+        variableValue = variable.getDefaultValue();
+      } else {
+        logMsg = "httpStubWorker : delimited variable : " + variable.getName() + " not found with: " 
+          + variable.getRightOf() + " : " + variable.getLeftOf() + ". " + e; 
+        stubLog.addMessage(logMsg, logger,"INFO");
+        variableValue = variable.getName() + " not found"; // avoid null pointer errors
+      }
+    }
+    return variableValue;
+  }
+  
+  public String processTimestampType(Variable variable){
+    
+    String variableValue = null;
+    Calendar cal = Calendar.getInstance();
+    /*
+     * * apply a time offset if required
+     */
+    if (variable.getOffset() > 0){
+      cal.add(Calendar.SECOND, variable.getOffset());
+    } 
+    SimpleDateFormat sdf = new SimpleDateFormat(variable.getFormat());
+    variableValue = sdf.format(cal.getTime());
+    return variableValue;
+  } 
+  
+  public String processRandomLongType(Variable variable){
+    
+    String variableValue = null;
+    Random random = new Random();
+    long randMin = (long) variable.getRandMin(); 
+    long randMax = (long) variable.getRandMax();
+    long range = (long)randMax - (long)randMin + 1;
+    long fraction = (long)(range * random.nextDouble());
+    int randomNumber =  (int)(fraction + randMin);
+    /*
+     * apply the printf format if any
+     */
+    if (variable.getFormat().length() == 0) {
+      variableValue = Double.valueOf(randomNumber).toString();
+    } else {
+      variableValue = Printf.format(variable.getFormat(), new Object[] {Double.valueOf(randomNumber)});
+    }
+    return variableValue;
+  } 
+  
+  public String processNumberType(Variable variable)
+  {
+    String variableValue = variable.getNumberValue();
+    double numberValue = Double.parseDouble(variableValue);
+    if (variable.getFormat().length() == 0) {
+      variableValue = Double.valueOf(numberValue).toString();
+    } else {
+      variableValue = Printf.format(variable.getFormat(), new Object[] {Double.valueOf(numberValue)});
+    }
+    /*
+     * update the variable counter file
+     */
+    variable.updateNumberValue(variable.getFileName(),variableValue, variable.getIncrement());
+    return variableValue;
+  } 
+  
+  public String processPositionalType(String searchLine, Variable variable,Logger logger){
+    
+    String variableValue = null;
+    int startPos = variable.getStartPosition();
+    int strLength = startPos + variable.getLength();
+    
+    try {
+      variableValue = searchLine.substring(startPos, strLength);
+    } catch( Exception e ) {
+      if (variable.getDefaultValue().length() > 0){
+        logMsg = "httpStubWorker : positional variable : " + variable.getName() + " not found with: " 
+          + "Start Position: " + startPos + " : Length: " + strLength 
+          + " default value : " + variable.getDefaultValue() + " used.";
+        stubLog.addMessage(logMsg, logger,"INFO");
+        variableValue = variable.getDefaultValue();
+      } else {
+        logMsg = "httpStubWorker : positional variable : " + variable.getName() + " not found with: " 
+          + "Start Position: " + startPos + " : Length: " + strLength + ".";
+        stubLog.addMessage(logMsg, logger,"WARN");
+      }
+      variableValue = variable.getName() + " not found"; // avoid null pointer errors
+    }
+  return variableValue;
+}
+
+public String processGuidType(){
+  String variableValue = null;
+  UUID idOne = UUID.randomUUID();
+  variableValue = String.valueOf(idOne);
+  return variableValue;
+}
+
+public String processSessionType(Variable variable, Logger logger){
+  String variableValue = null;
+  int sessionLength = Integer.parseInt(variable.getSessionLength());
+  
+  try {
+    SecureRandom prng = SecureRandom.getInstance("SHA1PRNG");
+    String randomNum = new Integer(prng.nextInt()).toString();
+    
+    MessageDigest sha = MessageDigest.getInstance("SHA-1");
+    byte[] result =  sha.digest(randomNum.getBytes());
+    
+    StringBuilder sessionResult = new StringBuilder();
+    
+    if (sessionLength == 0 ) {
+      sessionLength = result.length;
+    } else if (result.length < sessionLength){
+      sessionLength = result.length;
+    }
+    
+    char[] digits = {'0', '1', '2', '3', '4','5','6','7','8','9','a','b','c','d','e','f'};
+    for (int idx = 0; idx < sessionLength; ++idx) {
+      byte b = result[idx];
+      sessionResult.append(digits[ (b&0xf0) >> 4 ]);
+      sessionResult.append(digits[ b&0x0f]);
+    }
+    
+    variableValue = sessionResult.toString();
+    
+  }
+  catch (NoSuchAlgorithmException ex) {
+    logMsg = "httpStubWorker: unable to process session type: " + ex;
+          stubLog.addMessage(logMsg, logger,"ERROR");
+    
+  }    
+  return variableValue;
+}
+
+public String processStringType(Variable variable){
+  String variableValue = variable.getValue();
+  return variableValue;
+}
+
+public String processThreadCountType(){
+  //String variableValue = String.valueOf(httpProperties.getActiveThreadCount());
+  return variableValue;
+}
+
+public String processReceiverCountType(){
+  String variableValue=null;
+  int z = 0;
+  for (z = 0; z < receiverEventCntr.size(); z++) {
+    if (z==0){
+      variableValue=receiverEventCntr.get(z);
+    } else {
+      variableValue=variableValue + " - " + receiverEventCntr.get(z);
+    }
+  }
+  if (z==0) {
+    variableValue="no receiver event found.";
+  }
+  
+  
+  return variableValue;
+}
+
+
+public String processContentLengthType(String responseMsg){
+  String variableValue = null;
+  // splitting on empty line, header in part 0, body is remainder 
+  String[] parts = responseMsg.split("(?:\r\n|[\r\n])[ \t]*(?:\r\n|[\r\n])");
+  // if response message has multiple blank line breaks
+  // then loop through all adding the length
+  if (parts.length > 2) { 
+    int bodyLen = 0;
+    // start on second part of string, avoids header
+    for (int x=1; x<parts.length; x++){
+      bodyLen += parts[x].length();  
+    }
+    bodyLen += parts.length; // add blank lines counter
+    variableValue = Integer.toString(bodyLen);
+  } else {
+    // just determine length of second part.
+    String stringBody = parts[1];
+    variableValue = Integer.toString(stringBody.length());
+  }
+  
+  return variableValue;
+}
+
+
+
+}
+
+

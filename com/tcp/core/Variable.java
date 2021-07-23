@@ -1,0 +1,515 @@
+package com.tcp.core;
+
+/**
+ class: variable
+ Purpose: holds the details of the variables
+ Notes:
+ Author: Tim Lane
+ Date: 24/03/2014
+ 
+ **/
+
+import java.io.IOException;
+import java.util.Date;
+import java.io.*;
+import org.apache.log4j.Logger;
+import java.text.SimpleDateFormat;
+
+public class Variable {
+  
+  public static final String DELIMITED_TYPE = "Delimited";
+  public static final String MULTIDELIMITED_TYPE = "MultiDelimited";
+  public static final String EXTRACTVALUE_TYPE = "ExtractValue";
+  public static final String FILE_TYPE = "File";
+  public static final String NUMBER_TYPE = "Number";
+  public static final String POSITIONAL_TYPE = "Positional";
+  public static final String RANDOM_DOUBLE_TYPE = "RandomDouble";
+  public static final String RANDOM_LONG_TYPE = "RandomLong";
+  public static final String STRING_TYPE = "String";
+  public static final String THREAD_TYPE = "Thread";
+  public static final String TIMESTAMP_TYPE = "Timestamp";
+  public static final String LOOKUP_TYPE = "Lookup";
+  public static final String HEX_TYPE = "HEX";
+  public static final String REGEX_TYPE = "Regex";
+  public static final String SESSION_LENGTH_TYPE = "SessionLength";
+  private String  Name;
+  private String  Type;
+  private String  Convert;
+  private boolean isTrim;
+  private String  Format;
+  private int  Offset;
+  private String  initialValue;
+  private String stringIncrement;
+  private String  Value;
+  private String  RightOf;
+  private String  LeftOf;
+  public int delimOccurence;
+  private int  StartPosition;
+  private int  Length;
+  private double RandMin;
+  private double RandMax;
+  private String FileName;
+  private String  defaultValue;
+  private int  Column;
+  private String numberValue;
+  private String databaseEvent;
+  private Boolean databaseLookupKey;
+  private String lookupKeyName;
+  private String occurrence;
+  private boolean databaseWrite;
+  private String delimiter;
+  private String sessionLength;
+  private String accessType;
+  private String errorString;
+  private String fileKeyColumn;
+  private String fileDataColumn;
+
+  String keyType;
+  String keyValue;
+  String fileLookupVariable;
+  
+  private VariableFileArray variableFileArray;
+  
+  StubLog stubLog = new StubLog();
+  String logMsg = "";
+  private Logger logger;
+  
+  public Variable(Logger logger){
+    this.logger = logger;
+  }
+  
+  public String getName() {
+    return Name;
+  }
+  
+  public void setName(String name) {
+    Name = name;
+  }
+  
+  public String getType() {
+    return Type;
+  }
+  
+  public void setType(String type) {
+    Type = type;
+  }
+  
+  public String getAccessType() {
+      return this.accessType;
+  }
+  
+  public void setAccessType(String accessType) {
+    this.accessType = accessType;
+  }
+  
+  public void setNumberValue(String fileName, String initialValue)
+    throws IOException
+  {
+    //String numberValue = null;
+    if (fileName.length() > 0) {
+       /*
+       * if the initial value is already set then update the file with this value
+       */
+      if (initialValue.length() > 0 ) {
+        this.numberValue = initialValue;
+        try {
+          BufferedWriter out = new BufferedWriter(new FileWriter(fileName));
+          out.write(initialValue);
+          out.close();
+        } catch (FileNotFoundException e) { 
+         logMsg = "variable: data error setting number value: " + e;
+          stubLog.addMessage(logMsg, logger,"ERROR");
+        
+        }
+      } else {
+        /*
+         * else read the value from the file
+         */
+        try {
+          BufferedReader in = new BufferedReader(new FileReader(fileName));
+          this.numberValue = in.readLine();
+          in.close();
+        } catch (FileNotFoundException e) { 
+          logMsg = "variable: data error getting number value: " + e;
+          stubLog.addMessage(logMsg, logger,"ERROR");
+        }
+        
+      }
+    }
+  }
+  
+  public String getNumberValue() {
+    return this.numberValue;
+  }
+  
+  public void updateNumberValue(String fileName,String numberValue, String increment)
+  {
+    double tmpIncrement = Integer.parseInt(increment);
+    double tmpNumberValue = Double.parseDouble(numberValue);
+    tmpNumberValue = tmpNumberValue + tmpIncrement ;
+    this.numberValue = Double.toString(tmpNumberValue);
+    
+    try {
+      BufferedWriter out = new BufferedWriter(new FileWriter(fileName));
+      out.write(this.numberValue);
+      out.close();
+    } catch (Exception e) { 
+      logMsg = "variable: data error updating number variable: " + fileName;
+      stubLog.addMessage(logMsg, logger,"ERROR");
+    }
+    
+  }
+  
+  public String getValue() {
+    return Value;
+  }
+  
+  public void setValue(String value) {
+    Value = value;
+  }
+  
+  
+  public void setStartPosition(String startPosition) {
+    if (startPosition.length() == 0)
+      setStartPosition(0);
+    else
+      setStartPosition(Integer.parseInt(startPosition));
+  }
+  
+  public void setStartPosition(int startPosition) {
+    StartPosition = startPosition;
+  }
+  
+  public int getStartPosition() {
+    return StartPosition;
+  }
+  
+  public int getLength() {
+    return Length;
+  }
+  
+  public void setLength(int length) {
+    Length = length;
+  }
+  
+  public void setLength(String length) {
+    if (length.length() == 0)
+      setLength(0);
+    else
+      setLength(Integer.parseInt(length));
+  }
+  
+  public int getColumn() {
+    return Column;
+  }
+  
+  public void setColumn(int column) {
+    Column = column;
+  }
+  
+  public void setColumn(String column) {
+    if (column.length() == 0)
+      setColumn(0);
+    else
+      setColumn(Integer.parseInt(column));
+  }
+   
+  public String getFormat() {
+    return Format;
+  }
+  
+  public void setFormat(String format) {
+    Format = format;
+  }
+  
+  public String getInitialValue() {
+    return this.initialValue;
+  }
+  
+  public void setInitialValue(String initialValue) {
+    this.initialValue = initialValue;
+  }
+  
+  public String getIncrement() {
+    return this.stringIncrement;
+  }
+  
+  public void setIncrement(String stringIncrement) {
+    if (stringIncrement.length() == 0)
+      this.stringIncrement = "1";
+    else
+      this.stringIncrement = stringIncrement;
+  }
+  
+  public String getFileName() {
+    return this.FileName;
+  }
+  
+  public void setFileName(String fileName) 
+    throws IOException
+  {
+    this.FileName = fileName;
+    
+    if (fileName.length() != 0) {
+      try {
+        /*
+         * try and open the file to make sure it exists
+         */
+        BufferedReader in = new BufferedReader(new FileReader(this.FileName));
+        /*
+         * close it now, will be open when needed
+         */
+        in.close();
+      } catch (FileNotFoundException e) { 
+        /*
+         * file doesnt exist so create it for future use
+         */
+        BufferedWriter out = new BufferedWriter(new FileWriter(this.FileName));
+        out.write(getInitialValue());
+        out.close();
+      }
+    }
+  }
+  
+  public String getRightOf() {
+    return RightOf;
+  }
+  
+  public void setRightOf(String rightOf) {
+    RightOf = rightOf;
+  }
+  
+  public String getLeftOf() {
+    return LeftOf;
+  }
+  
+  public void setLeftOf(String leftOf) {
+    LeftOf = leftOf;
+  }
+  
+  
+  public int getOffset() {
+    return Offset;
+  }
+  
+  public void setOffSet(int offset) {
+    this.Offset = offset;
+  }
+  
+  public void setOffset(String offset) {
+    if (offset.length() == 0)
+      setOffSet(0);
+    else
+      setOffSet(Integer.parseInt(offset));
+  }
+  
+  public double getRandMin() {
+    return RandMin;
+  }
+  
+  public void setRandMin(double randMin) {
+    RandMin = randMin;
+  }
+  
+  public void setRandMin(String randMin) {
+    if (randMin.length() == 0)
+      setRandMin(0);
+    else
+      setRandMin(Double.parseDouble(randMin));
+  }
+  
+  public double getRandMax() {
+    return RandMax;
+  }
+  
+  public void setRandMax(double randMax) {
+    RandMax = randMax;
+  }
+  
+  public void setRandMax(String randMax) {
+    if (randMax.length() == 0)
+      setRandMax(0);
+    else
+      setRandMax(Double.parseDouble(randMax));
+  }
+  
+  public String getDefaultValue() {
+    return this.defaultValue;
+  }
+  
+  public void setDefaultValue(String defaultValue) {
+    this.defaultValue = defaultValue;
+  }
+  
+  public String getConvert() {
+    return Convert;
+  }
+  
+  public void setConvert(String convert) {
+    Convert = convert;
+  }
+  
+  public boolean isTrim() {
+    return isTrim;
+  }
+  
+  public void setTrim(String trim) {
+    if (trim.equals("TRUE"))
+      this.isTrim = true;
+    else
+      this.isTrim = false;
+  }
+  
+  public void setDatabaseEvent(String databaseEvent) {
+    this.databaseEvent = databaseEvent;
+  }
+
+  public String getDatabaseEvent() {
+    return this.databaseEvent;
+  }
+  // 2.1
+   public boolean getDatabaseLookupKey() {
+    return this.databaseLookupKey;
+  }
+  
+  public void setDatabaseLookupKey(String databaseLookupKey) {
+    if (databaseLookupKey.toUpperCase().equals("TRUE"))
+      this.databaseLookupKey = true;
+    else
+      this.databaseLookupKey = false;
+  }
+  
+    public String getLookupKeyName() {
+    return this.lookupKeyName;
+  }
+    
+  public void setDatabaseWrite(String databaseWrite) {
+    if (databaseWrite.toUpperCase().equals("TRUE"))
+      this.databaseWrite = true;
+    else
+      this.databaseWrite = false;
+  }
+  
+  public Boolean getDatabaseWrite() {
+    return this.databaseWrite;
+  }
+  
+  public void setLookupKeyName(String lookupKeyName) {
+    this.lookupKeyName = lookupKeyName;
+  }
+  
+  public String getOccurrence() {
+    return this.occurrence;
+  }
+  
+  public void setOccurrence(String occurrence) {
+    
+    this.occurrence = occurrence;
+  }  
+  
+  public String getDelimiter() {
+    return this.delimiter;
+  }
+  
+    // v1.1
+  public String getKeyType() {
+    return this.keyType;
+  } 
+  
+
+  public void setKeyType(String keyType) {
+    this.keyType = keyType;
+  }
+  
+    public String getKeyValue() {
+      return this.keyValue;
+  } 
+  
+
+  public void setKeyValue(String keyValue) {
+    this.keyValue = keyValue;
+    return;
+  }
+  
+  public String getFileLookupVariable() {
+    return this.fileLookupVariable;
+  } 
+  
+
+  public void setFileLookupVariable(String fileLookupVariable) {
+    this.fileLookupVariable = fileLookupVariable;
+    return;
+  }
+  
+  
+  
+    public void getDelimiter(String delimiter) {
+    
+    this.delimiter = delimiter;
+    return;
+  } 
+  
+
+  public void setLookupKey(String lookupKey, String argh) {
+    this.keyType = lookupKey;
+    return ;
+  }
+  
+  
+  public void setDelimiter(String delimiter) {
+    
+    this.delimiter = delimiter;
+  }
+  
+  
+ 
+  public String getSessionLength() {
+    
+    return this.sessionLength;
+  }
+  
+  public void setSessionLength(String sessionLength) {
+        if (sessionLength.length() == 0)
+          this.sessionLength = "0";
+        else {
+          this.sessionLength = sessionLength; 
+        }
+  }
+  
+    public VariableFileArray getVariableFileArray() {
+    return variableFileArray;
+  }
+  
+  public void setVariableFileArray(VariableFileArray variableFileArray) {
+    this.variableFileArray = variableFileArray;
+  }
+  
+  public void loadDataFile(String fileName) {
+    //String numberValue = null;
+    if (fileName.length() == 0) {
+    } else {  
+      try {
+        VariableFileArray variableFileArray = new VariableFileArray();
+        variableFileArray.initialise(fileName);
+        setVariableFileArray(variableFileArray);
+      } catch (Exception e) { 
+        logMsg = "data error reading data file: " + fileName  + " : " + e.toString();
+        stubLog.addMessage(logMsg, logger,"ERROR");
+        
+      } finally {
+        // no code just yet 
+      }
+    }
+  }
+
+      public void setFileKeyColumn(String fileKeyColumn) {
+    
+    this.fileKeyColumn = fileKeyColumn;
+  }
+  
+  public String getFileDataColumn() {
+    return this.fileDataColumn;
+  }
+      
+
+}

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VIFStub xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="\c:\temp\vif\schema\vif.xsd">
+<!-- Configuration Section -->
+
+<!-- http configuration -->
+<TCPServer Host="localhost" Port="8888" ThreadCount="1000" Format="HEX"
+MonitorPort="9002" MonitorRefresh="10"/>
+
+<!-- <StubMonitor MonitorHost="10.52.88.102" MonitorPort="9002" MonitorRefresh="10"/>-->
+
+<!--	
+	<MQSeries 
+	QManager="SERVER.QMGR" 
+	WaitTime="0"  
+	ClientHost="192.168.56.1"
+	ClientPort="1414"
+	ClientChannel="CHNAME"
+	ClientUserName=" "
+	ClientPassword=" " 
+	QueueName="SERVER.SECOND.QUEUE"
+	OutQueueName="SERVER.LOCAL.QUEUE"
+	/>
+
+-->
+<!-- httpS configuration  
+
+<HTTPServer Host="192.168.56.1" Port="8888" ThreadCount="1000" 
+MonitorPort="9002" MonitorRefresh="10"
+			SSLKeyStore="C:\dbox\Dropbox\java\20150821_httpstub\keystore\keystore.jks" 
+			SSLKeyPswd="password" 
+			SSLKeyStorePswd="password" 
+			SSLCertStore="certStore" 
+			SSLClientAuth="false"
+			/>
+-->
+<!-- version control -->
+<!-- v0.5 - Tim Lane - 07/02/2014 - initial version -->
+	<Core Author="Tim Lane" Name="TCP TEST STUB" Description="TCP TEST STUB" Date="March 2016" > 
+	
+	<!-- Date="07/02/2014"> -->
+	<Header DefaultReceiverEvent="SINK" LogLevel="DEBUG" LogFileName="C:\dbox\Dropbox\java\tcpDriver\xml\log4j.properties"/>
+
+<!-- variable section -->
+
+	<!-- Round Robin whole line -->
+	<Variable Name="DataReadNextLine" Type="FileRead" AccessType="NEXT" Filename="C:\dbox\Dropbox\java\tcpDriver\data\datafile.txt" />
+
+<!-- file l0ookup search for a text in a file -->
+	<!-- file should be laid out 3165,east bentleigh where the first column is the lookup value the second is the return value -->
+	<Variable Name="lookupPostCode" Type="FileLookup" KeyType="TEXT" KeyValue="3165" Filename="C:\dbox\Dropbox\java\tcpDriver\data\datafile2.txt" DefaultValue="lookup value not found"/>
+    <!-- this one looks up the file based on a variable passed in the as the request message -->
+	<!-- following positional is used for FileLookup -->
+	<Variable Name="POSTCODE" Type="Positional" StartPosition="74" Length="4" DefaultValue=" not found" />	
+	<Variable Name="lookupPostCodeByVar" Type="FileLookup" KeyType="VARIABLE" KeyValue="POSTCODE" Filename="C:\dbox\Dropbox\java\tcpDriver\data\datafile2.txt"/>
+<!-- end file lookup -->
+
+<!-- generate a timestamp -->
+	<!-- current time -->
+	<Variable Name="TIMESTAMP" Type="Timestamp" Format="HH:mm:ss"/>
+	<!-- one hour in the future -->
+	<Variable Name="TIMESTAMPplusOne" Type="Timestamp" Offset="3600" Format="HH:mm:ss"/>
+<!-- end timestamp -->	
+
+<!-- generate a guid id -->
+	<Variable Name="GUIDToken" Type="Guid" />
+<!-- end generate guid -->
+
+<!-- generate a SessionId -->
+	<Variable Name="SessionId" Type="SessionId" SessionLength="40"/>
+<!-- end generate SessionId -->
+
+<!-- create a static string value -->
+	<Variable Name="StringVariable" Type="String" Value="testing testing one two three" />
+<!-- end string value -->
+
+<!-- create a static random number value between one and 9999 -->
+	<Variable Name="randNumber" Type="RandomLong" RandMin="1111" RandMax="9999" Format="%s" />
+<!-- end random value -->
+
+<!-- extracts from input based on position -->
+	<Variable Name="postionalVar" Type="Positional" StartPosition="30" Length="10" DefaultValue=" not found" />	
+
+<!-- extracts from input based on tags -->
+	<Variable Name="extractGUID" Type="Delimited" RightOf="=" LeftOf="&amp;" DefaultValue="GUID not found" /> 
+	<Variable Name="extractTEXT" Type="Delimited" RightOf="=" LeftOf="&amp;" DefaultValue="TEXT not found" /> 
+
+<!-- test all message types -->
+
+<!-- TIMESTAMP 
+<ReceiverEvent Name="testme" KeyType="STRING" KeyValue="6000006E">
+		<EventMessage BaselineMessage="testme" WaitDistribution="UNIFORM" MinWait="0.1" MaxWait="0.5"/>
+	</ReceiverEvent>
+<BaselineMessage Name="testme">Timestamp (plus one hour) is: %TIMESTAMPplusOne%,Timestamp is: %TIMESTAMP%,session is: %SessionId%,GUID is: %GUIDToken%,String is : %StringVariable%,Random Number is: %randNumber%,lookup postcode is %lookupPostCode%,lokup postcode by var is %lookupPostCodeByVar%,next line is %DataReadNextLine%,StringVariable is %StringVariable%</BaselineMessage>
+<BaselineMessage Name="testme">lookup postcode is %lookupPostCode%,lookup for postcode by var %POSTCODE% is %lookupPostCodeByVar%</BaselineMessage> 
+-->
+<!-- TIMESTAMP -->
+<ReceiverEvent Name="as2805" KeyType="STRING" KeyValue="6000006Exxx">
+	<EventMessage BaselineMessage="as2805" WaitDistribution="UNIFORM" MinWait="0.1" MaxWait="0.5"/>
+</ReceiverEvent>
+<BaselineMessage Name="as2805">Timestamp (plus one hour) is: %TIMESTAMPplusOne%, lookup postcode is %lookupPostCode%, next line is %DataReadNextLine%</BaselineMessage>
+
+
+</Core>
+
+</VIFStub>

@@ -1,0 +1,40 @@
+@echo off
+
+set PROGNAME=vie_test
+set HOMELOC=C:\dbox\Dropbox\java\stubby
+set JAVALOC="C:\Program Files\Java\jre7\bin"
+
+cd /d %HOMELOC%\command
+
+set CLASSPATH=.;%HOMELOC%\stubby.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\lava3-printf.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\lava3-core.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\com.ibm.mq.axis2.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\com.ibm.mq.commonservices.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\com.ibm.mq.defaultconfig.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\com.ibm.mq.headers.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\com.ibm.mq.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\com.ibm.mq.jmqi.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\com.ibm.mq.jms.Nojndi.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\com.ibm.mq.pcf.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\com.ibm.mq.postcard.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\com.ibm.mq.soap.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\com.ibm.mq.tools.ras.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\com.ibm.mqbind.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\com.ibm.mqjms.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\commons-lang3-3.2.1.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\connector.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\jai_imageio-1.1.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\jai_imageio_windows-i586.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\java-rt-jar-stubs-1.5.0.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\jcommon-1.0.17.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\jfreechart-1.0.14.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\lava3-core.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\lava3-printf.jar
+set CLASSPATH=%CLASSPATH%;%HOMELOC%\lib\log4j-1.2.17.jar
+
+rem echo %CLASSPATH%
+
+rem %JAVALOC%\java -Dcom.sun.management.jmxremote.port=3333 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -XX:+PerfBypassFileSystemCheck -Xmx512m com.httpStub.core.httpStub
+
+%JAVALOC%\java -Xmx512m com.stubby.mq.mqStub %HOMELOC%\xml\mqsink.xml

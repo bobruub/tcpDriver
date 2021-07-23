@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VIFStub xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="\c:\temp\vif\schema\vif.xsd">
+<!-- Configuration Section -->
+
+<!-- http configuration -->
+<HTTPServer Host="10.3.18.92" Port="8888" ThreadCount="1000" 
+MonitorPort="9002" MonitorRefresh="10"/>
+
+<!-- http://10.3.18.58:10001/QWERTY -->
+
+<StubMonitor MonitorHost="10.3.18.92" MonitorPort="9002" MonitorRefresh="10"/>
+	
+	<!-- ClientHost="10.62.105.74" 
+		ClientPort="14140" ClientChannel="AU3GPL1.UANZBRT1.01S" ClientUserName=" " 
+		
+	<MQSeries QManager="CL_TEST" WaitTime="0"  ThreadCount="1000" 
+	ClientHost="192.168.1.102"
+	ClientPort="1414"
+	ClientChannel="CL_CHANNEL"
+	ClientUserName="Tim@Tim-PC"
+	ClientPassword=" ">
+		<Inbound QueueName="outbound.queue"/>
+		<Outbound QueueName="outbound.queue" Correlate="TRUE"/>
+	</MQSeries>
+	-->
+
+<!-- httpS configuration 
+        <HTTPServer Host="10.108.55.156" Port="10001" ThreadCount="1000"
+			SSLKeyStore="c:\temp\vif\ssl\Newkeystore.jks" 
+			SSLKeyPswd="password" 
+			SSLKeyStorePswd="password" 
+			SSLCertStore="certStore" 
+			SSLClientAuth="false"
+			/>
+-->
+
+<!-- version control -->
+<!-- v0.5 - Tim Lane - 07/02/2014 - initial version -->
+	<Core Author="Tim Lane" Name="ESG KISS V0.6" Description="ESG KISS Stub Port 9001" > 
+	
+	<!-- Date="07/02/2014"> -->
+	<Header DefaultReceiverEvent="SINK" LogLevel="INFO" LogFileName="..\xml\log4j.properties"/>
+
+<!-- variable section -->
+
+<!-- generate a timestamp -->
+	<!-- current time -->
+	<Variable Name="TIMESTAMP" Type="Timestamp" Format="HH:mm:ss"/>
+	<!-- one hour in the future -->
+	<Variable Name="TIMESTAMPplusOne" Type="Timestamp" Offset="3600" Format="HH:mm:ss"/>
+<!-- end timestamp -->	
+
+<!-- generate a guid id -->
+	<Variable Name="GUIDToken" Type="Guid" />
+<!-- end generate guid -->
+
+<!-- generate a SessionId -->
+	<Variable Name="SessionId" Type="SessionId" SessionLength="40"/>
+<!-- end generate SessionId -->
+
+<!-- capture current thread execution count to a variable -->
+	<Variable Name="ThreadCount" Type="ThreadCount" />
+<!-- end count generate -->
+
+<!-- create a static string value -->
+	<Variable Name="StringVariable" Type="String" Value="testing testing one two three" />
+<!-- end string value -->
+
+<!-- create a static random number value between one and 9999 -->
+	<Variable Name="randNumber" Type="RandomLong" RandMin="1111" RandMax="9999" Format="%s" />
+<!-- end random value -->
+	
+<!-- following variables read data from a file either ROUND ROBIN (NEXT) or RANDOM -->
+	<!-- Round Robin whole line
+	<Variable Name="DataReadNextLine" Type="FileRead" AccessType="NEXT" Filename="..\data\datafile.txt" />  -->
+	<!-- round robin first column 
+	<Variable Name="DataReadNextCol2" Type="FileRead" AccessType="NEXT" Filename="..\data\datafile.txt"
+	FileDataColumn="2" /> -->
+	<!-- Random selection second column 
+	<Variable Name="DataReadRandom" Type="FileRead" AccessType="RANDOM" Filename="..\data\datafile.txt"/> -->
+<!-- end data file reads -->
+
+<!-- following variables read data from a file and then use a variable to LOOKUP data -->
+	<!-- variable lookup key data -->
+	<!-- NOTE key variable must be prior to lookup call 
+    <Variable Name="delimitedVariable" Type="Delimited" RightOf="phoneNumber&quot; : &quot;" LeftOf="&quot;" 
+	DefaultValue="mobile number not found" 
+	FileLookupKey="TRUE"/> -->
+	<!-- first column as Key, second column as data - default config
+	<Variable Name="fileLookupDelimitedVar" Type="FileLookup" Filename="..\data\lookupData.txt"
+	LookupKeyName="delimitedVariable"	/> -->
+	<!-- second column is key, third column is data 
+	<Variable Name="fileColLookupPhoneNumber" Type="FileLookup" Filename="..\data\DataKeylookupData.txt"
+	LookupKeyName="FilePhoneNumberKey" FileKeyColumn="2" FileDataColumn="3"/> -->
+<!-- end file lookup reads -->
+
+<!-- in memory lookup, assumes the memory array is alread populated -->
+	<!-- use following value as a lookup key for a subsequent search -->
+	<!-- NOTE key variable must be prior to lookup call -->
+	<Variable Name="PhoneNumberKey" Type="Delimited" RightOf="phoneNumber&quot; : &quot;" LeftOf="&quot;" 
+	DefaultValue="mobile number not found" 
+	MemoryLookupKey="TRUE"	/>
+	<!-- in memory lookup varaible using lookup key, delete the data from memory after lookup -->
+	<Variable Name="SMSLookup" Type="MemoryLookup" 
+	LookupKeyName="PhoneNumberKey" DeleteMemoryData="TRUE"/>
+<!-- end lookup variables -->
+	
+<!-- save the followng variables for an in memory lookup -->
+<!-- in memory data table will look like <key>:<data> -->
+	<!-- extract first element (key) from input message -->
+	<Variable Name="PhoneNumber" Type="Delimited" RightOf="phoneNumber&quot; : &quot;" LeftOf="&quot;" 
+	DefaultValue="mobile number not found" 
+	MemoryKey="TRUE" MemoryName="smscode" />
+<!-- extract second element (data) from e.g. data file , could be any extract/create -->
+	<Variable Name="smsCode" Type="Number" 
+	Filename="PC_counter.txt" InitialValue="1000" Increment="1"  
+	MemoryData="TRUE" MemoryName="smscode" Format="%d" />
+<!-- end memory save -->
+
+<!-- write data to a data bases 
+ variable to write 
+	<Variable Name="PhoneNumber" Type="Delimited" RightOf="name=" LeftOf="]" 
+	DefaultValue="mobile number not found" 
+	DatabaseWrite="TRUE" DatabaseEvent="SMSCODE" />
+	another variable to write
+	<Variable Name="smsCode" Type="Number" 
+	Filename="PC_counter.txt" InitialValue="1000" Increment="1" Format="%d"  
+	DatabaseWrite="TRUE" DatabaseEvent="SMSCODE"   />
+	data configuration, ip and php file to call 
+	note database and php interface needs to up and running but is outside
+	scope of the configurtion file 
+	<DatabaseEvent Name="SMSCODE" PHPFile="selectsmscode.php" DBServerIP="localhost:80" />
+end database write -->
+	
+<!-- lookup memory array with lookup value
+ this is the lookup key for the memory array 
+	<Variable Name="memoryPhoneNumber" Type="Delimited" RightOf="phoneNumber&quot; : &quot;" LeftOf="&quot;" 
+	DefaultValue="mobile number not found" 
+	MemoryLookupKey="TRUE" />
+	<Variable Name="memoryLookup" Type="MemoryLookup" LookupKeyName="memoryPhoneNumber" />
+end memory lookup -->
+
+<!-- lookup database with lookup value 
+	 extract first element (key) from input message
+	 NOTE key variable must be prior to lookup call 
+	<Variable Name="PhoneNumber" Type="Delimited" RightOf="name=" LeftOf="]" 
+	DefaultValue="mobile number not found" 
+	DatabaseLookupKey="TRUE" />
+	database lookup using key variable, 
+	<Variable Name="smsCode" Type="DatabaseLookup" 
+	LookupKeyName="PhoneNumber" DatabaseEvent="SMSLOOKUP" />
+	data configuration, ip and php file 
+	note database and php interface needs to up and running but is outside
+	scope of the configurtion file 
+	<DatabaseEvent Name="SMSLOOKUP" PHPFile="selectphonenumber.php" DBServerIP="localhost:80" />	
+end database lookup -->
+
+<!-- displayt he contents of any in memory array -->
+	<Variable Name="displayMemoryArray" Type="DisplayMemoryArray" />	
+<!-- end display memory array -->
+	
+	<!-- extracts from input based on position -->
+	<Variable Name="postionalVar" Type="Positional" StartPosition="30" Length="10" DefaultValue=" not found" />	
+
+<!-- extracts from input based on tags -->
+	<Variable Name="extractGUID" Type="Delimited" RightOf="=" LeftOf="&amp;" DefaultValue="GUID not found" /> 
+	
+	
+<!-- determine content length of http request, if required MUST be last value in variable list -->
+	<Variable Name="ContentLength" Type="ContentLength" />	
+<!-- end content length -->
+
+<!-- test all message types -->
+
+<!-- TIMESTAMP -->
+<ReceiverEvent Name="timestamp" KeyType="STRING" KeyValue="timestamp">
+		<EventMessage BaselineMessage="timestamp" WaitDistribution="UNIFORM" MinWait="0.1" MaxWait="0.5"/>
+	</ReceiverEvent>
+	<BaselineMessage Name="timestamp">HTTP/1.1 200 OK
+Date: Mon, 02 Dec 2013 08:57:36 GMT
+Server: IBM_HTTP_Server
+Cache-Control: no-cache
+Content-Length: %ContentLength%
+Set-Cookie: JSESSIONID=%SessionId%; Path=/
+Set-Cookie: PLAY_ERRORS=""; Path=/locationsapi/
+Expires: Thu, 01 Dec 1994 16:00:00 GMT
+Connection: close
+Content-Type: application/html; charset=utf-8
+Content-Language: en-AU
+
+Timestamp (plus one hour) is: %TIMESTAMPplusOne%
+Timestamp is: %TIMESTAMP%
+session is: %SessionId%
+GUID is: %GUIDToken%
+ThreadCount is : %ThreadCount%
+String is : %StringVariable%
+Random Number is: %randNumber%
+</BaselineMessage>
+
+<!-- GUID -->
+<ReceiverEvent Name="getGUID" KeyType="STRING" KeyValue="getGUID">
+		<EventMessage BaselineMessage="getGUID" WaitDistribution="UNIFORM" MinWait="0.1" MaxWait="0.5"/>
+	</ReceiverEvent>
+	<BaselineMessage Name="getGUID">HTTP/1.1 200 OK
+Date: Mon, 02 Dec 2013 08:57:36 GMT
+Server: IBM_HTTP_Server
+Cache-Control: no-cache
+Content-Length: %ContentLength%
+Set-Cookie: JSESSIONID=%SessionId%; Path=/
+Set-Cookie: PLAY_ERRORS=""; Path=/locationsapi/
+Expires: Thu, 01 Dec 1994 16:00:00 GMT
+Connection: close
+Content-Type: application/html; charset=utf-8
+Content-Language: en-AU
+
+&lt;GUID&gt;%GUIDToken%&lt;GUID&gt;</BaselineMessage>
+
+<!-- GUID -->
+<ReceiverEvent Name="sendGUID" KeyType="STRING" KeyValue="SEND">
+		<EventMessage BaselineMessage="sendGUID" WaitDistribution="UNIFORM" MinWait="0.1" MaxWait="0.5"/>
+	</ReceiverEvent>
+	<BaselineMessage Name="sendGUID">HTTP/1.1 200 OK
+Date: Mon, 02 Dec 2013 08:57:36 GMT
+Server: IBM_HTTP_Server
+Cache-Control: no-cache
+Content-Length: %ContentLength%
+Set-Cookie: JSESSIONID=%SessionId%; Path=/
+Set-Cookie: PLAY_ERRORS=""; Path=/locationsapi/
+Expires: Thu, 01 Dec 1994 16:00:00 GMT
+Connection: close
+Content-Type: application/html; charset=utf-8
+Content-Language: en-AU
+
+&lt;GUID&gt;%extractGUID%&lt;GUID&gt;</BaselineMessage>
+
+<!-- RANDOM -->
+<ReceiverEvent Name="randomNumber" KeyType="STRING" KeyValue="RANDOM">
+	<EventMessage BaselineMessage="randomNumber" WaitDistribution="UNIFORM" MinWait="0.1" MaxWait="0.5"/>
+</ReceiverEvent>
+<BaselineMessage Name="randomNumber">HTTP/1.1 200 OK
+Date: Mon, 02 Dec 2013 08:57:36 GMT
+Server: IBM_HTTP_Server
+Cache-Control: no-cache
+Content-Length: %ContentLength%
+Set-Cookie: JSESSIONID=%SessionId%; Path=/
+Set-Cookie: PLAY_ERRORS=""; Path=/locationsapi/
+Expires: Thu, 01 Dec 1994 16:00:00 GMT
+Connection: close
+Content-Type: application/html; charset=utf-8
+Content-Language: en-AU
+
+%randNumber%</BaselineMessage>
+
+	<!-- DEFAULT - if non of the above are matched send back this response -->
+<ReceiverEvent Name="DEFAULT" KeyType="STRING" KeyValue="http">
+	<EventMessage BaselineMessage="DEFAULT" WaitDistribution="UNIFORM" MinWait="0.1" MaxWait="0.1"/>
+</ReceiverEvent>
+<BaselineMessage Name="DEFAULT">HTTP/1.1 200 OK
+Date: Mon, 02 Dec 2013 08:57:36 GMT
+Server: IBM_HTTP_Server
+Cache-Control: no-cache
+Content-Length: %ContentLength%
+Set-Cookie: JSESSIONID=%SessionId%; Path=/
+Set-Cookie: PLAY_ERRORS=""; Path=/locationsapi/
+Expires: Thu, 01 Dec 1994 16:00:00 GMT
+Connection: close
+Content-Type: application/html; charset=utf-8
+Content-Language: en-AU
+
+%TIMESTAMP% - httpstub. default response. no match found</BaselineMessage>
+
+
+</Core>
+
+</VIFStub>
